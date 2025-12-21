@@ -11,7 +11,7 @@ const baseApiUrl = async () => {
  
 module.exports = {
   config: {
-    name: "sing",
+    name: "song",
     version: "2.2.0",
     author: "RX api x MOHAMMAD AKASH",
     role: 0,
@@ -26,7 +26,7 @@ module.exports = {
     const input = args.join(" ");
  
     if (!input)
-      return api.sendMessage("❌ Please provide a song name or YouTube link.", event.threadID, event.messageID);
+      return api.sendMessage("» উফফ আবাল কি গান শুনতে চাস তার ২/১ লাইন তো লেখবি নাকি 🥵 empty!.", event.threadID, event.messageID);
  
     const isYtLink = checkurl.test(input);
     const tmpFolder = path.join(__dirname, "tmp");
