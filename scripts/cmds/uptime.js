@@ -1,98 +1,112 @@
 const { GoatWrapper } = require("fca-liane-utils");
 const os = require("os");
+const fs = require("fs-extra");
+const axios = require("axios");
+const path = require("path");
+
+const startTime = new Date();
 
 module.exports = {
   config: {
-    name: "uptime",
-    aliases: ["up", "upt"],
-    version: "5.1",
-    author: "Alamin",
+    name: "upt",
+    author: "RAKIB MAMUDA",
+    countDown: 0,
     role: 0,
-    shortDescription: "Show bot uptime with moon phase animation",
-    longDescription: "Displays bot uptime stats in stylish moon-phase animation format with total users and threads.",
+    usePrefix: false,
     category: "system",
-    guide: "{p}uptime"
+    longDescription: {
+      en: "Get System Information",
+    },
   },
 
-  onStart: async function ({ api, event, usersData, threadsData }) {
-    const delay = ms => new Promise(res => setTimeout(res, ms));
-
-    const loadingFrames = [
-      "🌑 [░░░░░░░░░░░░░░] 0%",
-      "🌒 [▓▓▓▓░░░░░░░░░░] 25%",
-      "🌓 [▓▓▓▓▓▓▓▓░░░░░░] 50%",
-      "🌔 [▓▓▓▓▓▓▓▓▓▓▓▓░░] 75%",
-      "🌕 [▓▓▓▓▓▓▓▓▓▓▓▓▓▓] 100%"
-    ];
-
+  onStart: async function ({ api, event, message }) {
     try {
-      // Step 1: Loading animation
-      const loadingMsg = await api.sendMessage(
-        `🌕 𝐋𝐨𝐚𝐝𝐢𝐧𝐠 𝐁𝐨𝐭 𝐔𝐩𝐭𝐢𝐦𝐞...\n${loadingFrames[0]}`,
-        event.threadID
-      );
+      const frames = [
+        "🔄 𝗜𝗻𝗶𝘁𝗶𝗮𝗹𝗶𝘇𝗶𝗻𝗴...\n[░░░░░░░░░░]",
+        "🔄 𝗖𝗵𝗲𝗰𝗸𝗶𝗻𝗴 𝗦𝘁𝗮𝘁𝘀...\n[███░░░░░░░]",
+        "🔧 𝗟𝗼𝗮𝗱𝗶𝗻𝗴 𝗜𝗻𝗳𝗼...\n[██████░░░░]",
+        "✅ 𝗗𝗼𝗻𝗲!\n[██████████]",
+      ];
 
-      for (let i = 1; i < loadingFrames.length; i++) {
-        await delay(400);
-        await api.editMessage(
-          `🌕 𝐋𝐨𝐚𝐝𝐢𝐧𝐠 𝐁𝐨𝐭 𝐔𝐩𝐭𝐢𝐦𝐞...\n${loadingFrames[i]}`,
-          loadingMsg.messageID
-        );
-      }
+      const sent = await message.reply("⚙️ Gathering system info...");
 
-      // Step 2: Calculate uptime and system info
-      const uptime = process.uptime();
-      const days = Math.floor(uptime / 86400);
-      const hours = Math.floor((uptime % 86400) / 3600);
-      const minutes = Math.floor((uptime % 3600) / 60);
-      const seconds = Math.floor(uptime % 60);
-      const uptimeFormatted = `${days}d ${hours}h ${minutes}m ${seconds}s`;
+      let step = 0;
+      const animate = async () => {
+        if (step < frames.length) {
+          await api.editMessage(frames[step], sent.messageID);
+          step++;
+          return setTimeout(animate, 600);
+        } else {
+          const uptimeInSeconds = (new Date() - startTime) / 1000;
+          const days = Math.floor(uptimeInSeconds / (3600 * 24));
+          const hours = Math.floor((uptimeInSeconds % (3600 * 24)) / 3600);
+          const minutes = Math.floor((uptimeInSeconds % 3600) / 60);
+          const secondsLeft = Math.floor(uptimeInSeconds % 60);
+          const uptimeFormatted = `${days}d ${hours}h ${minutes}m ${secondsLeft}s`;
 
-      const memoryUsage = (process.memoryUsage().rss / 1024 / 1024).toFixed(2);
-      const ping = Math.floor(Math.random() * 100) + 50; // simulated ping
+          const cpuUsage =
+            os
+              .cpus()
+              .map((cpu) => cpu.times.user)
+              .reduce((acc, curr) => acc + curr, 0) / os.cpus().length;
 
-      // Step 3: Date (Bangladesh timezone)
-      const date = new Date().toLocaleDateString("en-US", {
-        timeZone: "Asia/Dhaka",
-        day: "2-digit",
-        month: "long",
-        year: "numeric"
-      });
+          const totalMemoryGB = os.totalmem() / 1024 ** 3;
+          const freeMemoryGB = os.freemem() / 1024 ** 3;
+          const usedMemoryGB = totalMemoryGB - freeMemoryGB;
 
-      // Step 4: Total users & threads
-      let totalUsers = 0;
-      let totalThreads = 0;
+          const currentDate = new Date();
+          const date = currentDate.toLocaleDateString("en-US");
+          const time = currentDate.toLocaleTimeString("en-US", {
+            timeZone: "Asia/Dhaka",
+            hour12: true,
+          });
 
-      if (usersData && typeof usersData.getAll === "function") {
-        const allUsers = await usersData.getAll();
-        totalUsers = allUsers.length;
-      }
+          const timeStart = Date.now();
+          await new Promise((res) => setTimeout(res, 100));
+          const ping = Date.now() - timeStart;
+          const pingStatus = ping < 1000 ? "✅| 𝖲𝗆𝗈𝗈𝗍𝗁 𝖲𝗒𝗌𝗍𝖾𝗆" : "⛔| 𝖡𝖺𝖽 𝖲𝗒𝗌𝗍𝖾𝗆";
 
-      if (threadsData && typeof threadsData.getAll === "function") {
-        const allThreads = await threadsData.getAll();
-        totalThreads = allThreads.length;
-      }
+          const systemInfo = `♡   ∩_∩
+（„• ֊ •„)♡
+╭─∪∪────────────⟡
+│ 𝗨𝗣𝗧𝗜𝗠𝗘 𝗜𝗡𝗙𝗢
+├───────────────⟡
+│ ⏰ 𝗥𝗨𝗡𝗧𝗜𝗠𝗘
+│  ${uptimeFormatted}
+├───────────────⟡
+│ 👑 𝗦𝗬𝗦𝗧𝗘𝗠 𝗜𝗡𝗙𝗢
+│𝙾𝚂: ${os.type()} ${os.arch()}
+│𝙻𝙰𝙽𝙶 𝚅𝙴𝚁: ${process.version}
+│𝙲𝙿𝚄 𝙼𝙾𝙳𝙴𝙻: ${os.cpus()[0].model}
+│𝚂𝚃𝙾𝚁𝙰𝙶𝙴: ${usedMemoryGB.toFixed(2)} GB / ${totalMemoryGB.toFixed(2)} GB
+│𝙲𝙿𝚄 𝚄𝚂𝙰𝙶𝙴: ${cpuUsage.toFixed(1)}%
+│𝚁𝙰𝙼 𝚄𝚂𝙶𝙴: ${(process.memoryUsage().heapUsed / 1024 / 1024).toFixed(2)} MB
+├───────────────⟡
+│ ✅ 𝗢𝗧𝗛𝗘𝗥 𝗜𝗡𝗙𝗢
+│𝙳𝙰𝚃𝙴: ${date}
+│𝚃𝙸𝙼𝙴: ${time}
+│𝙿𝙸𝙽𝙶: ${ping}ms
+│𝚂𝚃𝙰𝚃𝚄𝚂: ${pingStatus}
+╰───────────────⟡`;
 
-      // Step 5: Final output
-      const finalMessage = `
-> 🎀 𝐵𝑜𝑡 𝑈𝑝𝑡𝑖𝑚𝑒 𝐼𝑛𝑓𝑜
+          const imageUrl = "https://files.catbox.moe/s4zazi.gif";
+          const imagePath = path.join(__dirname, "upt_image.jpg");
 
-🕒 ᴜᴘᴛɪᴍᴇ : ${uptimeFormatted}
-📶 ᴘɪɴɢ     : ${ping}ms
-📅 ᴅᴀᴛᴇ    : ${date}
-💻 ᴍᴇᴍᴏʀʏ : ${memoryUsage} MB
-👥 ᴛᴏᴛᴀʟ ᴜꜱᴇʀꜱ : ${totalUsers}
-💬 ᴛᴏᴛᴀʟ ᴛʜʀᴇᴀᴅꜱ : ${totalThreads}
-👑 ᴏᴡɴᴇʀ  : Mohammad Alamin
-      `.trim();
+          const response = await axios.get(imageUrl, { responseType: "arraybuffer" });
+          fs.writeFileSync(imagePath, Buffer.from(response.data, "binary"));
 
-      await delay(300);
-      await api.editMessage(finalMessage, loadingMsg.messageID);
+          const attachment = fs.createReadStream(imagePath);
+          await api.sendMessage({ body: systemInfo, attachment }, event.threadID, () => {
+            fs.unlinkSync(imagePath); // cleanup
+          }, sent.messageID);
+        }
+      };
+
+      animate();
     } catch (err) {
-      console.error("Uptime command error:", err);
-      api.sendMessage("❌ Failed to load uptime info.", event.threadID);
+      console.error("Error in upt command:", err);
+      message.reply("❌ Error Upt info");
     }
-  }
+  },
 };
-
 const wrapper = new GoatWrapper(module.exports); wrapper.applyNoPrefix({ allowPrefix: true });
