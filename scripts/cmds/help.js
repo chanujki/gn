@@ -1,156 +1,121 @@
+fs = require("fs-extra");
 const axios = require("axios");
+const path = require("path");
 const { getPrefix } = global.utils;
-const { commands } = global.GoatBot;
-
-let xfont = null;
-let yfont = null;
-let categoryEmoji = null;
-
-/* ───── Load Fonts & Emoji ───── */
-async function loadResources() {
-  try {
-    const [x, y, c] = await Promise.all([
-      axios.get("https://raw.githubusercontent.com/Saim-x69x/sakura/main/xfont.json"),
-      axios.get("https://raw.githubusercontent.com/Saim-x69x/sakura/main/yfont.json"),
-      axios.get("https://raw.githubusercontent.com/Saim-x69x/sakura/main/category.json")
-    ]);
-    xfont = x.data;
-    yfont = y.data;
-    categoryEmoji = c.data;
-  } catch (e) {
-    console.error("[HELP] Resource load failed");
-  }
-}
-
-/* ───── Font Convert ───── */
-function fontConvert(text, type = "command") {
-  const map = type === "category" ? xfont : yfont;
-  if (!map) return text;
-  return text.split("").map(c => map[c] || c).join("");
-}
-
-function getCategoryEmoji(cat) {
-  return categoryEmoji?.[cat.toLowerCase()] || "🗂️";
-}
-
-function roleText(role) {
-  if (role === 0) return "All Users";
-  if (role === 1) return "Group Admins";
-  if (role === 2) return "Bot Admin";
-  return "Unknown";
-}
-
-/* ───── Command Find ───── */
-function findCommand(name) {
-  name = name.toLowerCase();
-  for (const [, cmd] of commands) {
-    const a = cmd.config?.aliases;
-    if (cmd.config?.name === name) return cmd;
-    if (Array.isArray(a) && a.includes(name)) return cmd;
-    if (typeof a === "string" && a === name) return cmd;
-  }
-  return null;
-}
-
+const { commands, aliases } = global.GoatBot;
+const doNotDelete = "[NIROB]"; 
+ 
 module.exports = {
   config: {
     name: "help",
-    aliases: ["menu"],
-    version: "2.0",
-    author: "Saimx69x | fixed by Aphelion",
+    version: "1.17",
+    author: "Nirob",
+    countDown: 5,
     role: 0,
+    shortDescription: {
+      en: "View command usage and list all commands directly",
+    },
+    longDescription: {
+      en: "View command usage and list all commands directly",
+    },
     category: "info",
-    shortDescription: "Show all commands",
-    guide: "{pn} | {pn} <command> | {pn} -c <category>"
+    guide: {
+      en: "{pn} / help cmdName ",
+    },
+    priority: 1,
   },
-
-  onStart: async function ({ message, args, event, role }) {
-    if (!xfont || !yfont || !categoryEmoji) await loadResources();
-
-    const prefix = getPrefix(event.threadID);
-    const input = args.join(" ").trim();
-
-    /* ───── Collect Categories ───── */
-    const categories = {};
-    for (const [name, cmd] of commands) {
-      if (!cmd?.config || cmd.config.role > role) continue;
-      const cat = (cmd.config.category || "UNCATEGORIZED").toUpperCase();
-      if (!categories[cat]) categories[cat] = [];
-      categories[cat].push(name);
-    }
-
-    /* ───── Category View ───── */
-    if (args[0] === "-c" && args[1]) {
-      const cat = args[1].toUpperCase();
-      if (!categories[cat])
-        return message.reply(`❌ Category "${cat}" not found`);
-
-      let msg = `━━━━━━━━━━━━━━\n`;
-      msg += `📂 ${getCategoryEmoji(cat)} ${fontConvert(cat, "category")}\n`;
-      msg += `━━━━━━━━━━━━━━\n`;
-
-      for (const c of categories[cat].sort())
-        msg += `• ${fontConvert(c)}\n`;
-
-      msg += `━━━━━━━━━━━━━━\n`;
-      msg += `🔢 Total: ${categories[cat].length}\n`;
-      msg += `⚡ Prefix: ${prefix}`;
-
-      return message.reply(msg);
-    }
-
-    /* ───── Main Menu ───── */
-    if (!input) {
-      let msg = `━━━━━━━━━━━━━━\n📜 COMMAND LIST\n━━━━━━━━━━━━━━\n`;
-
-      for (const cat of Object.keys(categories).sort()) {
-        msg += `\n${getCategoryEmoji(cat)} ${fontConvert(cat, "category")}\n`;
-        for (const c of categories[cat].sort())
-          msg += `  • ${fontConvert(c)}\n`;
+ 
+  onStart: async function ({ message, args, event, threadsData, role }) {
+    const { threadID } = event;
+    const threadData = await threadsData.get(threadID);
+    const prefix = getPrefix(threadID);
+ 
+    if (args.length === 0) {
+      const categories = {};
+      let msg = "╭───────❁";
+ 
+      msg += `\n│RAKIB COMMAND LIST\n╰────────────❁`; 
+ 
+      for (const [name, value] of commands) {
+        if (value.config.role > 1 && role < value.config.role) continue;
+ 
+        const category = value.config.category || "Uncategorized";
+        categories[category] = categories[category] || { commands: [] };
+        categories[category].commands.push(name);
       }
-
-      const total = Object.values(categories).reduce((a, b) => a + b.length, 0);
-
-      msg += `\n━━━━━━━━━━━━━━\n`;
-      msg += `🔢 Total Commands: ${total}\n`;
-      msg += `⚡ Prefix: ${prefix}\n`;
-      msg += `👑 Owner: Aphelion`;
-
-      return message.reply(msg);
-    }
-
-    /* ───── Command Info ───── */
-    const cmd = findCommand(input);
-    if (!cmd) return message.reply(`❌ Command "${input}" not found`);
-
-    const c = cmd.config;
-    const aliasText = Array.isArray(c.aliases)
-      ? c.aliases.join(", ")
-      : c.aliases || "None";
-
-    let usage = "No usage";
-    if (c.guide) {
-      if (typeof c.guide === "string") {
-        usage = c.guide;
-      } else if (typeof c.guide === "object") {
-        usage = c.guide.en || Object.values(c.guide)[0] || "No usage";
+ 
+      Object.keys(categories).forEach((category) => {
+        if (category !== "info") {
+          msg += `\n╭─────✰『  ${category.toUpperCase()}  』`;
+ 
+ 
+          const names = categories[category].commands.sort();
+          for (let i = 0; i < names.length; i += 3) {
+            const cmds = names.slice(i, i + 2).map((item) => `⭔${item}`);
+            msg += `\n│${cmds.join(" ".repeat(Math.max(1, 5 - cmds.join("").length)))}`;
+          }
+ 
+          msg += `\n╰────────────✰`;
+        }
+      });
+ 
+      const totalCommands = commands.size;
+      msg += `\n\n╭─────✰[𝗘𝗡𝗝𝗢𝗬]\n│>𝗧𝗢𝗧𝗔𝗟 𝗖𝗠𝗗𝗦: [${totalCommands}].\n│𝗧𝗬𝗣𝗘𝖳:[ ${prefix}𝗛𝗘𝗟𝗣 \n│.]\n╰────────────✰`;
+      msg += ``;
+      msg += `\n╭─────✰\n│ ╣[Rakib ꨄ︎]╠\n╰────────────✰`; 
+ 
+const helpListImages = [ "https://files.catbox.moe/p3ty43.jpeg" ];
+ 
+ 
+      const helpListImage = helpListImages[Math.floor(Math.random() * helpListImages.length)];
+ 
+      await message.reply({
+        body: msg,
+        attachment: await global.utils.getStreamFromURL(helpListImage)
+      });
+    } else {
+      const commandName = args[0].toLowerCase();
+      const command = commands.get(commandName) || commands.get(aliases.get(commandName));
+ 
+      if (!command) {
+        await message.reply(`Command "${commandName}" not found.`);
+      } else {
+        const configCommand = command.config;
+        const roleText = roleTextToString(configCommand.role);
+        const author = configCommand.author || "Unknown";
+ 
+        const longDescription = configCommand.longDescription ? configCommand.longDescription.en || "No description" : "No description";
+ 
+        const guideBody = configCommand.guide?.en || "No guide available.";
+        const usage = guideBody.replace(/{p}/g, prefix).replace(/{n}/g, configCommand.name);
+ 
+        const response = `
+  ╭───⊙
+  │ 🔶 ${configCommand.name}
+  ├── INFO
+  │ 📝 𝗗𝗲𝘀𝗰𝗿𝗶𝗽𝘁𝗶𝗼𝗻: ${longDescription}
+  │ 👑 𝗔𝘂𝘁𝗵𝗼𝗿: ${author}
+  │ ⚙ 𝗚𝘂𝗶𝗱𝗲: ${usage}
+  ├── USAGE
+  │ 🔯 𝗩𝗲𝗿𝘀𝗶𝗼𝗻: ${configCommand.version || "1.0"}
+  │ ♻𝗥𝗼𝗹𝗲: ${roleText}
+  ╰────────────⊙`;
+ 
+        await message.reply(response);
       }
-      usage = usage.replace(/{pn}/g, `${prefix}${c.name}`);
     }
-
-    const msg = `
-╭─── COMMAND INFO ───╮
-🔹 Name : ${c.name}
-📂 Category : ${(c.category || "UNCATEGORIZED").toUpperCase()}
-📜 Description : ${c.longDescription || c.shortDescription || "N/A"}
-🔁 Aliases : ${aliasText}
-⚙️ Version : ${c.version || "1.0"}
-🔐 Permission : ${roleText(c.role)}
-⏱️ Cooldown : ${c.countDown || 5}s
-👑 Author : ${c.author || "Unknown"}
-📖 Usage : ${usage}
-╰───────────────────╯`;
-
-    return message.reply(msg);
-  }
+  },
 };
+ 
+function roleTextToString(roleText) {
+  switch (roleText) {
+    case 0:
+      return "0 (All users)";
+    case 1:
+      return "1 (Group administrators)";
+    case 2:
+      return "2 (Admin bot)";
+    default:
+      return "Unknown role";
+  }
+        }
