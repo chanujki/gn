@@ -9,7 +9,8 @@ const startTime = new Date();
 module.exports = {
   config: {
     name: "upt",
-    author: "RAKIB MAMUDA",
+    aliases: ["up"],
+    author: "RAKIB MAHMUD",
     countDown: 0,
     role: 0,
     usePrefix: false,
