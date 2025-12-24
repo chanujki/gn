@@ -118,7 +118,11 @@ module.exports = {
 
             try {
               await message.send({
-                body: `✅ Here's your downloaded ${t}\n🛠️ Platform: ${platform}`,
+                body: `✅ ━━━━━━━━━━━━━━━
+🤖 𝐑𝐀𝐊𝐈𝐁 𝐁𝐎𝐓 - 𝐕𝐈𝐃𝐄𝐎 𝐃𝐎𝐖𝐍𝐋𝐎𝐀𝐃
+━━━━━━━━━━━━━━━
+《🎬 𝐓𝐈𝐓𝐋𝐄》: ${formattedTitle}
+━━━━━━━━━━━━━━`,
                 attachment: fs.createReadStream(filePath)
               });
               success = true;
